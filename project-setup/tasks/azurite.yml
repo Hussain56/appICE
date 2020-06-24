@@ -1,0 +1,71 @@
+---
+#appICE Dashboard setup with gitpath and understand setup Process
+#install azurite queue in ubuntu 
+- name: update the server
+  apt: update_cache=yes
+
+- name: install some dependencies for nvm 
+  shell: apt install build-essential checkinstall libssl-dev -y
+
+- name: install nvm 
+  shell: curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.35.1/install.sh | bash
+# to enable nvm we have to restart the terminal
+
+- name: update the node version
+  shell: nvm install v10.12.0
+  ignore_errors: yes
+
+- name: install npm
+  shell: |
+    npm cache clean -f
+    npm install -g n latest
+
+- name: install pm2
+  shell: npm install pm2 -g
+
+- name: Install pm2 global package
+  npm:
+    name: azurite
+    global: yes
+
+- name: Prepare directory for azurite data
+  file:
+    path: /var/lib/azurite
+    owner: www-data
+    group: www-data
+    mode: 0755
+    state: directory
+
+- name: Prepare .npm directory
+  become: yes
+  become_user: root
+  file:
+    path: /var/www/.pm2
+    state: directory
+    owner: www-data
+    group: www-data
+
+- name: Register status of azurite app
+  become: yes
+  become_user: www-data
+  shell: "pm2 describe azurite | grep status"
+  register: pm2_show_azurite
+  ignore_errors: yes
+  changed_when: false
+
+- name: Remove application from pm2
+  become: yes
+  become_user: www-data
+  shell: pm2 delete azurite
+  ignore_errors: yes
+  when: pm2_show_azurite.stdout.find('online') > -1
+
+- name: Start application with pm2
+  become: yes
+  become_user: www-data
+  shell: pm2 start azurite --name=azurite  -- -l /var/lib/azurite
+
+- name: Save the pm2 process list
+  become: yes
+  become_user: www-data
+  shell: "pm2 save"

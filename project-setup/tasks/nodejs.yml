@@ -1,0 +1,23 @@
+---
+#appICE Dashboard setup with gitpath and understand setup Process
+#nodejs install on ubuntu 18.04
+- name: install curl
+  apt: name=curl update_cache=yes state=latest
+
+- name: install nodejs repos
+  shell: |
+    curl -sL https://deb.nodesource.com/setup_10.x | sudo bash -
+    curl -sL https://deb.nodesource.com/setup_8.x | sudo bash -
+- name: install nodejs
+  apt: name=nodejs update_cache=yes state=latest
+
+- name: to check nodejs properly install or not creat one file
+  copy:
+    dest: "/opt/http_server.js"
+    content: |
+      var http = require('http');
+      http.createServer(function (req, res) {
+        res.writeHead(200, {'Content-Type': 'text/plain'});
+        res.end('Hello World\n');
+      }).listen(3000, "127.0.0.1");
+      console.log('Server running at http://127.0.0.1:3000/');

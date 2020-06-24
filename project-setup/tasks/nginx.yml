@@ -1,0 +1,13 @@
+---
+# Install nginx in ubuntu 18.04 version
+- name: update the server
+  apt: update_cache=yes
+
+- name: install nginx service
+  apt: name=nginx update_cache=yes state=latest
+
+- name: start nginx service
+  service: name=nginx state=started
+
+- name: enable nginx service
+  shell: systemctl enable nginx

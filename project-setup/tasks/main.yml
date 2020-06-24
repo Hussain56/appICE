@@ -1,0 +1,46 @@
+---
+# tasks file for project-setup
+#appICE Dashboard setup with gitpath and understand setup Process
+- name: showing node version
+  shell: node -v
+  register: node_version
+
+- include: nodejs.yml
+  when: not "node_version.stdout == v10.12.0"
+
+- name: showing node version
+  shell: supervisord --version
+  register: super_version
+
+- include: supervisor.yml
+  when: not "super_version.stdout == 3.3.1"
+
+- name: showing node version
+  shell: supervisord --version
+  register: redis_version
+
+- include: redis.yml
+  when: not "redis_version.stdout == 'Redis server v=4.0.9 sha=00000000:0 malloc=jemalloc-3.6.0 bits=64 build=9435c3c2879311f3'"
+
+- include: nginx.yml
+
+- name: showing node version
+  shell: mongod --version |grep db
+  register: mongod_version
+
+- include: mongod.yml
+  when: not "mongod_version.stdout == 'db version v3.2.22'"
+
+- name: showing node version
+  shell: azurite --version
+  register: azur_version
+
+- include: azurite.yml
+  when: not "azur_version.stdout == 3.7.0"
+
+  #- include: supervisor.yml
+  #- include: redis.yml
+  #- include: nodejs.yml
+  #- include: mongod.yml
+  #- include: azurite.yml
+  #- include: citus-docker.yml

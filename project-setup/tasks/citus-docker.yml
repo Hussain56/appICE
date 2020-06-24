@@ -1,0 +1,91 @@
+- name: Install a docker
+  shell: |
+    curl -sSL https://get.docker.com/ | sh
+    usermod -aG docker $USER && exec sg docker newgrp `id -gn`
+      
+- name: service start
+  service: name=docker state=started
+
+- name: docker-compose
+  shell: |
+    curl -sSL https://github.com/docker/compose/releases/download/1.16.1/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
+
+- name: start the citus cluster
+  shell: |
+    curl -L https://raw.githubusercontent.com/citusdata/docker/master/docker-compose.yml > docker-compose.yml
+    COMPOSE_PROJECT_NAME=citus docker-compose up -d
+      
+- name: shutdown the cluster
+  shell: COMPOSE_PROJECT_NAME=citus docker-compose down -v
+
+- name: install postgresql
+  shell: curl https://install.citusdata.com/community/deb.sh | sudo bash
+
+- name: install postgre
+  apt: name=postgresql-12-citus-9.2 state=latest
+
+- name: cluster with nodes
+  become: yes
+  become_user: postgres
+  shell: |
+    export PATH=$PATH:/usr/lib/postgresql/12/bin
+    cd ~
+    mkdir -p citus/coordinator citus/worker1 citus/worker2
+  ignore_errors: yes
+
+- name: Initialize the cluster with nodes
+  become: yes
+  become_user: postgres
+  shell: |
+    initdb -D citus/coordinator
+    initdb -D citus/worker1
+    initdb -D citus/worker2
+  ignore_errors: yes
+
+- name: configure variable
+  become: yes
+  become_user: postgres
+  shell: |
+    pg_ctl -D citus/coordinator -o "-p 9700" -l coordinator_logfile start
+    pg_ctl -D citus/worker1 -o "-p 9701" -l worker1_logfile start
+    pg_ctl -D citus/worker2 -o "-p 9702" -l worker2_logfile start
+  ignore_errors: yes
+
+- name: configure the co-ordinator
+  become: yes
+  become_user: postgres
+  shell: |
+    psql -p 9700 -c "CREATE EXTENSION citus;"
+    psql -p 9701 -c "CREATE EXTENSION citus;"
+    psql -p 9702 -c "CREATE EXTENSION citus;"
+    psql -p 9700 -c "SELECT * from master_add_node('localhost', 9701);"
+    psql -p 9700 -c "SELECT * from master_add_node('localhost', 9702);"
+  ignore_errors: yes
+
+- name: Create a directory for data
+  shell: | 
+    mkdir /home/data/
+    rsync -av /var/lib/postgresql/12/main /home/citus/
+    mv /var/lib/postgresql/12/main /var/lib/postgresql/12/main.bak
+    ln -s /home/citus/main /var/lib/postgresql/12/main
+
+- name: chage the data directory
+  lineinfile:
+    path: /etc/postgresql/12/main/postgresql.conf
+    # the string to search
+    regexp: "data_directory = '/var/lib/postgresql/12/main'"
+    # replace with systemd
+    line: "data_directory = '/home/citus/main'"
+    state: present
+    backup: yes
+
+- name: increse the connections
+  lineinfile:
+    path: /etc/postgresql/12/main/postgresql.conf
+    # the string to search
+    regexp: "max_connections = 100"
+    # replace with systemd
+    line: "max_connections = 500"
+    state: present
+    backup: yes

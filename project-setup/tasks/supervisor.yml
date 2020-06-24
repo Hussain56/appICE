@@ -1,0 +1,43 @@
+---
+#supervisor install in ubuntu 18.04
+#
+- name: update packages
+  apt: update_cache=yes
+
+- name: install supervisor
+  apt: name=supervisor state=latest
+
+- name: start the service
+  service: name=supervisor state=started
+
+- name: small programe for testing installation
+  copy:
+    dest: "/usr/local/bin/long.sh"
+    content: |
+      #!/bin/bash
+      while true
+      do 
+          # Echo current date to stdout
+          echo `date`
+          # Echo 'error!' to stderr
+          echo 'error!' >&2
+          sleep 1
+      done
+- name: execution permission for script
+  shell: chmod +x /usr/local/bin/long.sh
+
+- name: configuration file update
+  copy:
+    dest: "/etc/supervisor/conf.d/long_script.conf"
+    content: |
+      [program:long_script]
+      command=/usr/local/bin/long.sh
+      autostart=true
+      autorestart=true
+      stderr_logfile=/var/log/long.err.log
+      stdout_logfile=/var/log/long.out.log
+
+- name: restart the servie
+  shell: |
+    supervisorctl reread
+    supervisorctl update
